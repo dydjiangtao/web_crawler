@@ -1,4 +1,11 @@
-# -*- coding:utf-8 -*-
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+# @Date        : 2017-09-16
+# @Author      : Jiangtao Hu (hujiangtao@diyidan.com)
+# @Link        : https://www.diyidan.com
+# @Version     : 1.0
+# @Description : 爬取所有优酷VIP视频名字
+
 
 import requests
 import time
@@ -21,8 +28,12 @@ vip_headers = {
 }
 
 # vip_url = 'http://vip.youku.com/vips/TV.html?spm=a2h03.8173536.2100224.1&tag=10005&pt=1&ar=0'
+# 页面初步加载基本框架，ajax异步请求单独接口填充视频信息框
+
+
 def get_page_url(page):
     return 'http://vip.youku.com/ajax/filter/filter_data?tag=10005&pl=30&pt=1&ar=0&mg=0&y=0&cl=0&o=0&pn=%d' % page
+
 
 name_list = []
 for i in xrange(60):
