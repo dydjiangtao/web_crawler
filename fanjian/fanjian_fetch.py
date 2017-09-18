@@ -9,6 +9,8 @@ import requests
 import time
 import bs4
 
+from multiprocessing.dummy import Pool as ThreadPool
+
 import sys
 reload(sys)
 sys.setdefaultencoding('utf-8')
@@ -33,6 +35,7 @@ def get_fanjian_content():
         return 'http://www.fanjian.net/post/%d' % page
 
     def get_url_content(url):
+        
         response = requests.get(url, headers=target_headers, timeout=20)
         if response.status_code != 200:
             return None
@@ -42,22 +45,26 @@ def get_fanjian_content():
             title = soup.find('h1', class_='view-title').get('title')
         except:
             title = ''
-        content = soup.find('div', class_='view-main')
+        content = soup.find('div', class_='view-main') or ''
         if isinstance(content, bs4.Tag):
             content = str(content)
 
         return (title, content)
 
+    target_url_list = []
     fanjian_list = []
-    for i in xrange(1000, 125690):
-        target_url = get_page_url(i)
-        fanjian = get_url_content(target_url)
-        if fanjian:
-            fanjian_list.append(fanjian)
+    for i in xrange(1000, 1100):
+        target_url_list.append(get_page_url(i))
 
-        print '%s-->第%d页' % ('犯贱', i)
+    pool = ThreadPool(8)
+    fanjian = pool.map(get_url_content, target_url_list)
+    pool.close()
+    pool.join()
+    if fanjian:
+        fanjian_list = fanjian
 
-        # time.sleep(5)
+    # print '%s-->第%d页' % ('犯贱', i)
+
     print 'Get fanjian complete...' + '总计%d个' % len(fanjian_list)
 
     # save to local txt
@@ -68,4 +75,6 @@ def get_fanjian_content():
 
 
 if __name__ == '__main__':
+    start = time.time()
     get_fanjian_content()
+    print '用时%s秒' % (round(time.time()-start, 3))
