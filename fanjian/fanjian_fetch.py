@@ -9,11 +9,16 @@ import requests
 import time
 import bs4
 
+from multiprocessing import Pool as ThreadPool
 from multiprocessing.dummy import Pool as ThreadPool
 
 import sys
 reload(sys)
 sys.setdefaultencoding('utf-8')
+sys.setrecursionlimit(10000000)
+
+
+total_count = 0
 
 
 def get_fanjian_content():
@@ -34,13 +39,17 @@ def get_fanjian_content():
     def get_page_url(page):
         return 'http://www.fanjian.net/post/%d' % page
 
-    def get_url_content(url):
-        
-        response = requests.get(url, headers=target_headers, timeout=20)
+    def get_page_url_content(page_num):
+        page_url = 'http://www.fanjian.net/post/%d' % page_num
+        try:
+            response = requests.get(page_url, headers=target_headers)
+        except:
+            time.sleep(2)
+            return None
         if response.status_code != 200:
             return None
         html = response.content
-        soup = bs4.BeautifulSoup(html, 'html5lib')
+        soup = bs4.BeautifulSoup(html, 'html.parser')
         try:
             title = soup.find('h1', class_='view-title').get('title')
         except:
@@ -49,32 +58,42 @@ def get_fanjian_content():
         if isinstance(content, bs4.Tag):
             content = str(content)
 
+        # print '%s-->第%s页' % ('犯贱', page_num)
+        global total_count
+        total_count += 1
+        print total_count
+
         return (title, content)
 
-    target_url_list = []
     fanjian_list = []
-    for i in xrange(1000, 1100):
-        target_url_list.append(get_page_url(i))
 
-    pool = ThreadPool(8)
-    fanjian = pool.map(get_url_content, target_url_list)
-    pool.close()
-    pool.join()
-    if fanjian:
-        fanjian_list = fanjian
+    # pool = ThreadPool(4)
+    # fanjian = pool.map(get_page_url_content, xrange(1000, 125690))
+    # pool.close()
+    # pool.join()
+    for i in xrange(1000, 125691):
+        fanjian = get_page_url_content(i)
+        if fanjian:
+            fanjian_list.append(fanjian)
 
-    # print '%s-->第%d页' % ('犯贱', i)
+            # save to local txt
+            with open('fanjian_collect.txt', 'a') as f:
+                f.write('\n' * 4)
+                f.write('Page-%d:\n' % i)
+                f.write('\n\n'.join(fanjian))
+                f.close()
+                print 'save to local txt complete!'
 
     print 'Get fanjian complete...' + '总计%d个' % len(fanjian_list)
 
-    # save to local txt
-    with open('fanjian_collect.txt', 'w') as f:
-        f.write(('\n' * 4).join(['\n\n'.join(list(x)) for x in fanjian_list]))
-        f.close()
-        print 'save to local txt complete!'
+    # # save to local txt
+    # with open('fanjian_collect.txt', 'w') as f:
+    #     f.write(('\n' * 4).join(['\n\n'.join(list(x)) for x in fanjian_list]))
+    #     f.close()
+    #     print 'save to local txt complete!'
 
 
 if __name__ == '__main__':
     start = time.time()
     get_fanjian_content()
-    print '用时%s秒' % (round(time.time()-start, 3))
+    print '用时%s秒' % (round(time.time() - start, 3))
