@@ -8,6 +8,7 @@ import os
 import requests
 import time
 import bs4
+import re
 
 from multiprocessing import Pool as ThreadPool
 from multiprocessing.dummy import Pool as ThreadPool
@@ -19,6 +20,8 @@ sys.setrecursionlimit(10000000)
 
 
 total_count = 0
+success_img_count = 0
+fail_img_count = 0
 
 
 def get_fanjian_content():
@@ -77,7 +80,7 @@ def get_fanjian_content():
             fanjian_list.append(fanjian)
 
             # save to local txt
-            with open('fanjian_collect.txt', 'a') as f:
+            with open('fanjian_collect_2.txt', 'a') as f:
                 f.write('\n' * 4)
                 f.write('Page-%d:\n' % i)
                 f.write('\n\n'.join(fanjian))
@@ -93,7 +96,62 @@ def get_fanjian_content():
     #     print 'save to local txt complete!'
 
 
+def get_imgs_and_save_to_local(fanjian):
+    page_num = re.findall(r'Page-(\d+)', fanjian)
+    if page_num:
+        page_num = page_num[0]
+    else:
+        page_num = 'unknow'
+    img_urls = re.findall(r'src="(\S+)"', fanjian)
+
+    for url in img_urls:
+        if not url.endswith('jpg') and not url.endswith('png') and not url.endswith('gif'):
+            continue
+        img_name = url.split('/')[-1]
+        try:
+            r = requests.get(url, stream=True)
+            base_path = os.path.dirname(__file__)
+            img_path = os.path.join(os.path.join(
+                base_path, 'fanjian_imgs'), page_num)
+            if not os.path.exists(img_path):
+                os.mkdir(img_path)
+            os.chdir(img_path)
+            with open('%s' % img_name, 'wb') as f:
+                for chunk in r.iter_content(chunk_size=1024):
+                    if chunk:
+                        f.write(chunk)
+                        f.flush()
+                f.close()
+
+            global success_img_count
+            success_img_count += 1
+        except:
+            global fail_img_count
+            fail_img_count += 1
+            continue
+
+    print 'page-%s complete' % page_num
+
+
+def get_fanjian_img_urls():
+    for file in ['fanjian_collect.txt', 'fanjian_collect_2.txt']:
+        with open(file, 'r') as f:
+            content = f.read()
+            fanjian_collect = re.split(r'\n{4}', content)
+            print len(fanjian_collect)
+
+            pool = ThreadPool(8)
+            pool.map(get_imgs_and_save_to_local, fanjian_collect)
+            pool.close()
+            pool.join()
+
+            f.close()
+
+    print 'download: %s, fail: %s' % (success_img_count, fail_img_count)
+
+
 if __name__ == '__main__':
     start = time.time()
-    get_fanjian_content()
+    # get_fanjian_content()
+    get_fanjian_img_urls()
     print '用时%s秒' % (round(time.time() - start, 3))
